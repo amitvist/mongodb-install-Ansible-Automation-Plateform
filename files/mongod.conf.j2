@@ -1,0 +1,14 @@
+
+# Minimal hardening: bind to all (or set to your subnet), enable auth
+# Start from distro default if needed; this is a concise example.
+storage:
+  dbPath: /var/lib/mongodb
+  journal:
+    enabled: true
+
+net:
+  port: 27017
+  bindIp: 0.0.0.0   # or "127.0.0.1,{{ ansible_default_ipv4.address }}"
+
+security:
+  authorization: enabled
