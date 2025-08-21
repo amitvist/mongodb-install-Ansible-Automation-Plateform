@@ -141,6 +141,10 @@ systemctl status mongod
 
 You should see that the MongoDB service is active and running.
 
+One-shot verification playbook
+
+ansible-playbook -i inventory.yml playbooks/verify_mongod.yml
+
 ### 3. Connect to MongoDB
 
 If you have enabled authentication, you can connect to MongoDB using `mongosh` (MongoDB's shell):
