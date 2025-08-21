@@ -19,45 +19,60 @@
           - ansible_os_family in ['Debian','RedHat']
         fail_msg: "Only Debian/Ubuntu or RHEL/CentOS/OL are covered by this playbook."
 
-    # ---------- Debian/Ubuntu path ----------
-    - name: Remove conflicting Ubuntu 'mongodb' package if present
-      ansible.builtin.apt:
-        name: mongodb
-        state: absent
-      when: ansible_os_family == 'Debian'
+# ---------- Debian/Ubuntu path ----------
+- name: Remove conflicting Ubuntu 'mongodb' package if present
+  ansible.builtin.apt:
+    name: mongodb
+    state: absent
+  when: ansible_os_family == 'Debian'
 
-    - name: Ensure tools for repo/key (Debian/Ubuntu)
-      ansible.builtin.apt:
-        name: [gnupg, curl, ca-certificates]
-        state: present
-        update_cache: yes
-      when: ansible_os_family == 'Debian'
+- name: Ensure tools for repo/key (Debian/Ubuntu)
+  ansible.builtin.apt:
+    name: [gnupg, curl, ca-certificates]
+    state: present
+    update_cache: yes
+  when: ansible_os_family == 'Debian'
 
-    - name: Determine Ubuntu codename (focal/jammy/noble)
-      ansible.builtin.set_fact:
-        ubuntu_codename: "{{ ubuntu_supported[ansible_distribution_version] | default(ansible_distribution_release) }}"
-      when: ansible_os_family == 'Debian'
+- name: Determine Ubuntu codename (focal/jammy/noble)
+  ansible.builtin.set_fact:
+    ubuntu_codename: "{{ ubuntu_supported[ansible_distribution_version] | default(ansible_distribution_release) }}"
+  when: ansible_os_family == 'Debian'
 
-    - name: Download MongoDB GPG key to keyring (Debian/Ubuntu)
-      ansible.builtin.get_url:
-        url: "https://www.mongodb.org/static/pgp/server-{{ mongo_major }}.asc"
-        dest: "/usr/share/keyrings/mongodb-server-{{ mongo_major }}.gpg"
-        mode: "0644"
-      when: ansible_os_family == 'Debian'
+- name: Download MongoDB ASCII key (Debian/Ubuntu)
+  ansible.builtin.get_url:
+    url: "https://pgp.mongodb.com/server-{{ mongo_major }}.asc"
+    dest: "/usr/share/keyrings/mongodb-server-{{ mongo_major }}.asc"
+    mode: "0644"
+  when: ansible_os_family == 'Debian'
 
-    - name: Add MongoDB APT repo (Debian/Ubuntu)
-      ansible.builtin.apt_repository:
-        filename: "mongodb-org-{{ mongo_major }}"
-        repo: "deb [ arch=amd64,arm64 signed-by=/usr/share/keyrings/mongodb-server-{{ mongo_major }}.gpg ] https://repo.mongodb.org/apt/ubuntu {{ ubuntu_codename }}/mongodb-org/{{ mongo_major }} multiverse"
-        state: present
-      when: ansible_os_family == 'Debian'
+- name: Dearmor MongoDB key into keyring (Debian/Ubuntu)
+  ansible.builtin.command:
+    argv:
+      - gpg
+      - --dearmor
+      - --yes
+      - --output
+      - "/usr/share/keyrings/mongodb-server-{{ mongo_major }}.gpg"
+      - "/usr/share/keyrings/mongodb-server-{{ mongo_major }}.asc"
+  args:
+    creates: "/usr/share/keyrings/mongodb-server-{{ mongo_major }}.gpg"
+  when: ansible_os_family == 'Debian'
 
-    - name: Install MongoDB (Debian/Ubuntu)
-      ansible.builtin.apt:
-        name: mongodb-org
-        state: present
-        update_cache: yes
-      when: ansible_os_family == 'Debian'
+- name: Add MongoDB APT repo (Debian/Ubuntu)
+  ansible.builtin.copy:
+    dest: "/etc/apt/sources.list.d/mongodb-org-{{ mongo_major }}.list"
+    mode: "0644"
+    content: |
+      deb [ arch=amd64,arm64 signed-by=/usr/share/keyrings/mongodb-server-{{ mongo_major }}.gpg ] https://repo.mongodb.org/apt/ubuntu {{ ubuntu_codename }}/mongodb-org/{{ mongo_major }} multiverse
+  when: ansible_os_family == 'Debian'
+
+- name: Install MongoDB (Debian/Ubuntu)
+  ansible.builtin.apt:
+    name: mongodb-org
+    state: present
+    update_cache: yes
+  when: ansible_os_family == 'Debian'
+
 
     # ---------- RHEL/CentOS path ----------
     - name: Add MongoDB YUM/DNF repo (RHEL/CentOS/OL)
